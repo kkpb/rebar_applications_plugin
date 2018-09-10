@@ -4,11 +4,17 @@
 %%
 %% 詳細な動作に関しては README.md を参照
 -module(rebar_applications_plugin).
+-behaviour(provider).
 
 %%----------------------------------------------------------------------------------------------------------------------
 %% Exported API
 %%----------------------------------------------------------------------------------------------------------------------
 -export([post_compile/2]).
+
+%%----------------------------------------------------------------------------------------------------------------------
+%% 'provider' Callback API
+%%----------------------------------------------------------------------------------------------------------------------
+-export([init/1, do/1, format_error/1]).
 
 %%----------------------------------------------------------------------------------------------------------------------
 %% Macros
@@ -17,6 +23,10 @@
 -define(DEBUG(Format, Args), rebar_log:log(debug, "[~s:~p] "++Format++"~n", [?MODULE, ?LINE | Args])).
 -define(XREF_SERVER, ?MODULE).
 -define(APPS_CACHE_KEY, {?MODULE, apps_cache}).
+
+-define(PROVIDER, complement).
+-define(DEPS, [app_discovery]).
+-define(NAMESPACE, applications).
 
 %%----------------------------------------------------------------------------------------------------------------------
 %% Exported Functions
@@ -46,6 +56,33 @@ post_compile(Config0, AppFile) ->
                     {ok, Config4}
             end
     end.
+
+%%----------------------------------------------------------------------------------------------------------------------
+%% 'provider' Callback Functions
+%%----------------------------------------------------------------------------------------------------------------------
+init(State) ->
+    Provider = providers:create([
+                                 {name, ?PROVIDER},
+                                 {module, ?MODULE},
+                                 {bare, true},
+                                 {deps, ?DEPS},
+                                 {namespace, ?NAMESPACE}
+                                ]),
+    {ok, rebar_state:add_provider(State, Provider)}.
+
+do(State) ->
+    io:format("namespace:~p, current_app:~p\n", [rebar_state:namespace(State), rebar_state:current_app(State)]),
+    case rebar_state:current_app(State) of
+        undefined -> ok;
+        AppInfo ->
+            AppFile = rebar_app_info:app_file(AppInfo),
+            %% post_compile(GlobalConfig, AppFile),
+            io:format("app_file:~p\n", [AppFile])
+    end,
+    {ok, State}.
+
+format_error(Reason) ->
+    io_lib:format("~p", [Reason]).
 
 %%----------------------------------------------------------------------------------------------------------------------
 %% Internal Functions
